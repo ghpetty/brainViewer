@@ -1,140 +1,150 @@
 function patchStruct = marchingCubes_bv(binaryVolume)
 % patchStruct = marchingCubes_brainVolume(binaryVolume)
 % Construct a surface defining the volumes in 'binaryVolume,' where 1's
-% indicate the region(s) of interest. Uses the marching cubes algorithm 
+% indicate the region(s) of interest. Uses the marching cubes algorithm
 % to identify patch edges and vertices using a lookup table.
 % Faster than the standard isosurface function, as here we can make several
 % assumptions about the input data.
-% This function borrows heavily from MarchingCubes by Peter Hammer:
-% Peter Hammer (2023). Marching Cubes 
-% (https://www.mathworks.com/matlabcentral/fileexchange/32506-marching-cubes), 
-% MATLAB Central File Exchange. Retrieved April 24, 2023. 
-% For a description of how these lookup tables work, see 
+% This function borrows heavily from 'MarchingCubes' by Peter Hammer:
+% Peter Hammer (2023). Marching Cubes
+% (https://www.mathworks.com/matlabcentral/fileexchange/32506-marching-cubes),
+% MATLAB Central File Exchange. Retrieved April 24, 2023.
+% For a description of how these lookup tables work, see
 % https://gist.github.com/dwilliamson/c041e3454a713e58baf6e4f8e5fffecd
 
 [edgeTable,triTable] = GetTables();
-lindex = 4;
+% last column of triangle table is always 0 , so we can get rid of it
+triTable(:,end) = []; 
+volSize = size(binaryVolume);
+cubeSize = volSize- 1; % number of cubes along each direction of image
 
-n = size(binaryVolume) - 1; % number of cubes along each direction of image
+% Each row in this matrix describes an edge of a cube, defined by the two
+% vertices connecting that edge.
+edges = [1 2
+    2 3
+    3 4
+    4 1
+    5 6
+    6 7
+    7 8
+    8 5
+    1 5
+    2 6
+    3 7
+    4 8];
+
+% Offsets -
+% Describes the relative position of the midpoint of each marching
+% cube edge relative to the center of the cube (translating from
+% cube-space to volume-space)
+xyz_off = [1, 1, 1
+    2, 1, 1
+    2, 2, 1
+    1, 2, 1
+    1, 1, 2
+    2, 1, 2
+    2, 2, 2
+    1, 2, 2] - 1;
+edgeMidpoints = (xyz_off(edges(:,1),:) + xyz_off(edges(:,2),:)) / 2;
+
 
 
 % for each cube, assign which edges are intersected by the isosurface
 % 3d array of 8-bit vertex codes
-cubeCodes = zeros(n(1),n(2),n(3),'uint16'); 
+cubeCodes = zeros(cubeSize(1),cubeSize(2),cubeSize(3),'uint8');
 
-vertex_idx = {1:n(1), 1:n(2), 1:n(3); ...
-    2:n(1)+1, 1:n(2), 1:n(3); ...
-    2:n(1)+1, 2:n(2)+1, 1:n(3); ...
-    1:n(1), 2:n(2)+1, 1:n(3); ...
-    1:n(1), 1:n(2), 2:n(3)+1; ...
-    2:n(1)+1, 1:n(2), 2:n(3)+1; ...
-    2:n(1)+1, 2:n(2)+1, 2:n(3)+1; ...
-    1:n(1), 2:n(2)+1, 2:n(3)+1 };
+vertex_idx = {1:cubeSize(1), 1:cubeSize(2), 1:cubeSize(3); ...
+    2:cubeSize(1)+1, 1:cubeSize(2), 1:cubeSize(3); ...
+    2:cubeSize(1)+1, 2:cubeSize(2)+1, 1:cubeSize(3); ...
+    1:cubeSize(1), 2:cubeSize(2)+1, 1:cubeSize(3); ...
+    1:cubeSize(1), 1:cubeSize(2), 2:cubeSize(3)+1; ...
+    2:cubeSize(1)+1, 1:cubeSize(2), 2:cubeSize(3)+1; ...
+    2:cubeSize(1)+1, 2:cubeSize(2)+1, 2:cubeSize(3)+1; ...
+    1:cubeSize(1), 2:cubeSize(2)+1, 2:cubeSize(3)+1 };
 
 % Loop through vertices of each cube and identify vertices that touch the
 % region of interest. Use bitset to tag that vertex
 % As a result, each cube will have one of the 256 possible unique values,
 % and we can look up in a table where the corresponding surface will go.
-for ii=1:8                             
-    idx = binaryVolume(vertex_idx{ii, :}) == 1; % Indices of cubes with vertex ii in the region of interest  
+for ii=1:8
+    idx = binaryVolume(vertex_idx{ii, :}) == 1; % Indices of cubes with vertex ii in the region of interest
     cubeCodes(idx) = bitset(cubeCodes(idx), ii);   % Turn on bit ii of that cube
 end
 
-cedge = edgeTable(cubeCodes+1);  % intersected edges for each cube ([n1 x n2 x n3] mtx)
-id =  find(cedge);        % voxels which are intersected - We ignore all other voxels
+% Indices of cubes containing edge information (not completely inside or
+% outside the volume)
+edgeCubeInds = find(cubeCodes(:)~=255 & cubeCodes(:)~=0);
+numEdgeCubes = numel(edgeCubeInds);
+% Save some memory by replacing the volume of cube codes with just those
+% codes that have edge information
+cubeCodes = cubeCodes(edgeCubeInds);
 
+% Iterate through each index in our cube codes and look up the edges.
+% Since we know all of our values are either 0 or 1, we can skip the
+% interpolation step and just set our vertex point to be the midpoint of
+% each intersected edge.
 
+% First we store all the points that matter, then calculate how to connect
+% them from the triangle table:
+vertexMat = zeros(numEdgeCubes,3,12);
+% Format of [cubeNumber , (x,y,z) , edgeIndex]
 
-
-% Offsets for 
-xyz_off = [1, 1, 1 
-           2, 1, 1
-           2, 2, 1
-           1, 2, 1
-           1, 1, 2
-           2, 1, 2
-           2, 2, 2
-           1, 2, 2];
-
-% Each row in this matrix defines an edge of a cube, defined by the two
-% vertices connecting that edge. 
-edges = [1 2
-         2 3
-         3 4
-         4 1
-         5 6
-         6 7
-         7 8
-         8 5
-         1 5
-         2 6
-         3 7
-         4 8];
-
-offset = sub2ind(size(binaryVolume), xyz_off(:, 1), xyz_off(:, 2), xyz_off(:, 3)) -1;
-pp = zeros(length(id), lindex, 12);
-ccedge = [cedge(id), id];
-ix_offset=0;
-
-for jj=1:12
-    id__ = logical(bitget(ccedge(:, 1), jj)); % used for logical indexing
-    id_ = ccedge(id__, 2);
-    [ix iy iz] = ind2sub(size(cubeCodes), id_);
-    id_c = sub2ind(size(binaryVolume), ix, iy, iz);
-    id1 = id_c + offset(edges(jj, 1));
-    id2 = id_c + offset(edges(jj, 2));
-
-    pp(id__, 1:4, jj) = [InterpolateVertices(1, x(id1), y(id1), z(id1), ...
-        x(id2), y(id2), z(id2), binaryVolume(id1), binaryVolume(id2)), ...
-        (1:size(id_, 1))' + ix_offset ];
-    
-    ix_offset = ix_offset + size(id_, 1);
+for ii = 1:numEdgeCubes
+    cc = edgeCubeInds(ii); % cc = current cube's index
+    % Find the position of this index in the cube-space volume
+    [xc,yc,zc] = ind2sub(cubeSize,cc);
+    % Find the intersecting edges for this cube:
+    currEdges = edgeTable(cubeCodes(ii)+1);
+    % 12-bit index
+    edgeIndex = bitget(currEdges,1:12) == 1;
+    % Add to the position of the original cube
+    verts = edgeMidpoints + [xc yc zc];
+    vertexMat(ii,:,edgeIndex) = verts(edgeIndex,:)';
+    inlinePercent_bv(ii,numEdgeCubes,1);
 end
 
-F = [];
-tri = triTable(cubeCodes(id)+1, :);
-for jj=1:3:15
-    id_ = find(tri(:, jj)>0);
-    V = [id_, lindex*ones(size(id_, 1), 1),tri(id_, jj:jj+2) ];
-    if ( ~ isempty(V) )
-        p1 = sub2ind(size(pp), V(:,1), V(:,2), V(:,3));
-        p2 = sub2ind(size(pp), V(:,1), V(:,2), V(:,4));
-        p3 = sub2ind(size(pp), V(:,1), V(:,2), V(:,5));
-        F = [F; pp(p1), pp(p2), pp(p3)];
+faceMatDefault = [1 2 3;4 5 6;7 8 9;10 11 12;13 14 15]; 
+
+V_cell = cell(1,numEdgeCubes);
+F_cell = cell(1,numEdgeCubes);
+numVerts = 0;
+for ii = 1:numEdgeCubes
+    tris = triTable(cubeCodes(ii)+1,:);
+    tris = reshape(tris,3,5)';
+    tris(tris(:,1) == 0, :) = [];
+    V = zeros(3,3,size(tris,1));
+    for jj = 1:size(tris,1)
+        verts = (vertexMat(ii,:,tris(jj,:)));
+        V(:,:,jj) = verts;
     end
+    verts = reshape(V,3,[],1)';
+    V_cell{ii} = verts(:,:,1);
+
+    inlinePercent_bv(ii,numEdgeCubes,1);
 end
-
-% ---  Sub functions ---
-
-function p = InterpolateVertices(isolevel,p1x,p1y,p1z,p2x,p2y,p2z,valp1,valp2,col1,col2)
-
-if nargin == 9
-    p = zeros(length(p1x), 3);
-elseif nargin == 11
-    p = zeros(length(p1x), 4);
-else
-    error('Wrong number of arguments');
-end
-mu = zeros(length(p1x), 1);
-id = abs(valp1-valp2) < (10*eps) .* (abs(valp1) + abs(valp2));
-if ( any(id) )
-    p(id, 1:3) = [ p1x(id), p1y(id), p1z(id) ];
-    if ( nargin == 11 )
-        p(id, 4) = col1(id);
-    end
-end
-nid = ~id;
-if any(nid)
-    mu(nid) = (isolevel - valp1(nid)) ./ (valp2(nid) - valp1(nid));
-    p(nid, 1:3) = [p1x(nid) + mu(nid) .* (p2x(nid) - p1x(nid)), ...
-        p1y(nid) + mu(nid) .* (p2y(nid) - p1y(nid)), ...
-        p1z(nid) + mu(nid) .* (p2z(nid) - p1z(nid))];
-    if nargin == 11
-        p(nid, 4) = col1(nid) + mu(nid) .* (col2(nid) - col1(nid));
-    end
-end
+VV = vertcat(V_cell{:});
+FF = 1:size(VV,1);
+FF = reshape(FF,3,[])';
 
 
+
+% Remove duplicate vertices (by Oliver Woodford)
+% [V I] = sortrows(VV);
+% M = [true; any(diff(V), 2)];
+% V = VV(M,:);
+% I(I) = cumsum(M);
+% F = I(FF);
+
+patchStruct = struct('vertices',VV,'faces',FF);
+
+
+% figure; patch(p,'FaceColor','b');
+% PP = reducepatch(patchStruct,0.1);
+figure; 
+patch(patchStruct,'FaceColor','r','EdgeColor','none');
+camlight
+
+% --- Table data ---
 
 % Lookup table copied directly from Peter Hammer
 function [edgeTable, triTable] = GetTables()
@@ -172,7 +182,7 @@ edgeTable = [
     3728, 3993, 3219, 3482, 2710, 2975, 2197, 2460, ...
     1692, 1941, 1183, 1430,  666,  915,  153,  400, ...
     3840, 3593, 3331, 3082, 2822, 2575, 2309, 2060, ...
-    1804, 1541, 1295, 1030,  778,  515,  265,    0]; 
+    1804, 1541, 1295, 1030,  778,  515,  265,    0];
 
 triTable =[
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1;
