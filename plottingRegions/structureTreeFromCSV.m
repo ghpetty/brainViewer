@@ -1,5 +1,5 @@
 function [acronymTree,annotationTree] = structureTreeFromCSV(tree_table)
-% structureTree = structureTreeFromCSV(tree_table)
+% [acronymTree,annotationTree] = structureTreeFromCSV(tree_table)
 % Converts the Allen Brain Atlas structure tree CSV table to a 'tree' class
 % (from file exchange: 
 % https://www.mathworks.com/matlabcentral/fileexchange/35623-tree-data-structure-as-a-matlab-class
@@ -7,7 +7,7 @@ function [acronymTree,annotationTree] = structureTreeFromCSV(tree_table)
 
 idTree = tree(997); % 'root' structure has id 997 
 maxDepth = max(tree_table.depth);
-disp('Constructing tree...');
+% disp('Constructing tree...');
 tic
 for d = 1:maxDepth
     currNodes = tree_table(tree_table.depth == d ,:);

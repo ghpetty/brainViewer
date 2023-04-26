@@ -25,15 +25,15 @@ annotationVolumeFileName = 'annotation_volume_10um_by_index.npy';
 
 disp('loading reference atlas...');
 annotationVolume = readNPY(fullfile(pathData.ReferenceAtlasPath,annotationVolumeFileName));
-%
+
 Volume = wholeBrainVolume(annotationVolume,'Hemisphere','both','ReductionFactor',downsampleFactor);
 % volume_downsampled = reducepatch(volume,downsampleFactor);
 
 % Save output
-save(fullfile(DefaultOutputPath,'WholeBrainSurface.mat'),'Volume');
+save(fullfile(pathData.DefaultOutputPath,'WholeBrainSurface.mat'),'Volume');
 
 %% Create a nice plot
 figure
-brainPlot3D(Volume,'Color',[0.5 0.5 0.5],'Alpha',0.8);
+brainPlot3D(Volume,'Color',[0.5 0.5 0.5],'Alpha',1);
 camlight
 lighting gouraud

@@ -1,0 +1,11 @@
+# gitignore template for brainViewer 
+
+# MATLAB editor autosave files
+*.asv
+
+# Files created by brainViewer
+brainViewer_params.mat
+brainViewer_output/
+
+# Files for testing stuff
+brainViewerSandbox.m

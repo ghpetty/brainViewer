@@ -89,7 +89,8 @@ for i = 1:nRegionsTotal
             volumeBool(midlineValue:end,:,:) = false;
     end
     disp('   Computing isosurface...');
-    ISO = isosurface(volumeBool,0.5);
+    % ISO = isosurface(volumeBool,0.5);
+    ISO = marchingCubes_bv(volumeBool,'-v');
     if p.Results.ReductionFactor ~=1
         disp('   Simplifying isosurface...'); 
         isoCell{i} = reducepatch(ISO,0.01);

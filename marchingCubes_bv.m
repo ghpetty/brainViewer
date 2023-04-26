@@ -1,4 +1,4 @@
-function patchStruct = marchingCubes_bv(binaryVolume)
+function patchStruct = marchingCubes_bv(binaryVolume,verbose)
 % patchStruct = marchingCubes_brainVolume(binaryVolume)
 % Construct a surface defining the volumes in 'binaryVolume,' where 1's
 % indicate the region(s) of interest. Uses the marching cubes algorithm
@@ -12,6 +12,13 @@ function patchStruct = marchingCubes_bv(binaryVolume)
 % For a description of how these lookup tables work, see
 % https://gist.github.com/dwilliamson/c041e3454a713e58baf6e4f8e5fffecd
 
+if nargin == 1
+    verbose = false;
+elseif ismember(lower(string(verbose)),["-v" "verbose"])
+    verbose = true;
+elseif ~ (isscalar(verbose) && islogical(verbose))
+    error("Second input '" + string(verbose)+"' not recognized.");
+end
 [edgeTable,triTable] = GetTables();
 % last column of triangle table is always 0 , so we can get rid of it
 triTable(:,end) = []; 
@@ -53,6 +60,7 @@ edgeMidpoints = (xyz_off(edges(:,1),:) + xyz_off(edges(:,2),:)) / 2;
 % 3d array of 8-bit vertex codes
 cubeCodes = zeros(cubeSize(1),cubeSize(2),cubeSize(3),'uint8');
 
+
 vertex_idx = {1:cubeSize(1), 1:cubeSize(2), 1:cubeSize(3); ...
     2:cubeSize(1)+1, 1:cubeSize(2), 1:cubeSize(3); ...
     2:cubeSize(1)+1, 2:cubeSize(2)+1, 1:cubeSize(3); ...
@@ -66,9 +74,13 @@ vertex_idx = {1:cubeSize(1), 1:cubeSize(2), 1:cubeSize(3); ...
 % region of interest. Use bitset to tag that vertex
 % As a result, each cube will have one of the 256 possible unique values,
 % and we can look up in a table where the corresponding surface will go.
+if verbose
+    disp('Finding volumes transected by surface')
+end
 for ii=1:8
     idx = binaryVolume(vertex_idx{ii, :}) == 1; % Indices of cubes with vertex ii in the region of interest
     cubeCodes(idx) = bitset(cubeCodes(idx), ii);   % Turn on bit ii of that cube
+    if verbose; inlineProgressBar_bv(ii,8,8); end
 end
 
 % Indices of cubes containing edge information (not completely inside or
@@ -89,6 +101,9 @@ cubeCodes = cubeCodes(edgeCubeInds);
 vertexMat = zeros(numEdgeCubes,3,12);
 % Format of [cubeNumber , (x,y,z) , edgeIndex]
 
+if verbose
+    disp('Computing vertex points.')
+end
 for ii = 1:numEdgeCubes
     cc = edgeCubeInds(ii); % cc = current cube's index
     % Find the position of this index in the cube-space volume
@@ -100,14 +115,14 @@ for ii = 1:numEdgeCubes
     % Add to the position of the original cube
     verts = edgeMidpoints + [xc yc zc];
     vertexMat(ii,:,edgeIndex) = verts(edgeIndex,:)';
-    inlinePercent_bv(ii,numEdgeCubes,1);
+    if verbose;  inlineProgressBar_bv(ii,numEdgeCubes,8);  end
 end
 
-faceMatDefault = [1 2 3;4 5 6;7 8 9;10 11 12;13 14 15]; 
 
 V_cell = cell(1,numEdgeCubes);
-F_cell = cell(1,numEdgeCubes);
-numVerts = 0;
+if verbose 
+    disp('Connecting vertices to form faces')
+end
 for ii = 1:numEdgeCubes
     tris = triTable(cubeCodes(ii)+1,:);
     tris = reshape(tris,3,5)';
@@ -119,30 +134,25 @@ for ii = 1:numEdgeCubes
     end
     verts = reshape(V,3,[],1)';
     V_cell{ii} = verts(:,:,1);
-
-    inlinePercent_bv(ii,numEdgeCubes,1);
+    if verbose;  inlineProgressBar_bv(ii,numEdgeCubes,8);  end
 end
 VV = vertcat(V_cell{:});
 FF = 1:size(VV,1);
-FF = reshape(FF,3,[])';
 
+% Find duplicates:
+[uu,~,J] = unique(VV,'rows','stable');
+% Since the vertices are already in connecting order, we can just connect
+% them up in the same order as they are fed into the unique algorithm,
+% which is stored in output J
+FF = reshape(J,3,[])';
 
-
-% Remove duplicate vertices (by Oliver Woodford)
-% [V I] = sortrows(VV);
-% M = [true; any(diff(V), 2)];
-% V = VV(M,:);
-% I(I) = cumsum(M);
-% F = I(FF);
-
-patchStruct = struct('vertices',VV,'faces',FF);
-
+patchStruct = struct('vertices',uu,'faces',FF);
 
 % figure; patch(p,'FaceColor','b');
 % PP = reducepatch(patchStruct,0.1);
-figure; 
-patch(patchStruct,'FaceColor','r','EdgeColor','none');
-camlight
+% figure; 
+% patch(patchStruct,'FaceColor','r','EdgeColor','none');
+% camlight
 
 % --- Table data ---
 

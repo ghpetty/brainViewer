@@ -96,19 +96,22 @@ end
 
 % Downsample the volume to reduce memory and simplify the process of
 % finding isosurface
-downsampleIndices = {1:2:size(volumeBool,1)
-    1:2:size(volumeBool,2)
-    1:2:size(volumeBool,3)};
-downsampleVolume = volumeBool(downsampleIndices{1},downsampleIndices{2},downsampleIndices{3});
+% downsampleIndices = {1:2:size(volumeBool,1)
+%     1:2:size(volumeBool,2)
+%     1:2:size(volumeBool,3)};
+% downsampleVolume = volumeBool(downsampleIndices{1},downsampleIndices{2},downsampleIndices{3});
 
 disp('Computing volume surface (this will take several minutes)');
-ISO = isosurface(downsampleVolume,0.5);
+% ISO = isosurface(downsampleVolume,0.5);
+
+ISO = marchingCubes_bv(volumeBool,'-v');
+
 if p.Results.ReductionFactor ~=1
     disp('   Simplifying surface');
     ISO = reducepatch(ISO,0.01);
 end
 % Scale the vertices back up so they line up with reference space
-ISO.vertices = ISO.vertices * 2;
+% ISO.vertices = ISO.vertices * 2;
 volume = ISO;
 disp('Done!');
 % Plotting code for debugging:
