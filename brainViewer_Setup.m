@@ -13,12 +13,13 @@
 %% Find the Allen reference information
 % - See README for information on downloading these files.
 refAtlasFolderPath = uigetdir(cd,'Select folder containing the Allen reference atlas files');
-
+if isequal(refAtlasFolderPath,0); return; end
 %% Set an output folder location
 % - By default, brain region volumes and plots will be saved here in a new
 % folder. Be sure to select a directory that you have write permission to. 
 % (You can use the same path that brainViewer is saved to if you wish).
 defaultOutputPath = uigetdir(cd,'Select default output directory');
+if isequal(defaultOutputPath,0); return; end
 defaultFolder = 'brainViewer_output';
 if ~exist(fullfile(defaultOutputPath,defaultFolder),'dir')
     mkdir(fullfile(defaultOutputPath,defaultFolder));
@@ -34,6 +35,8 @@ if contains(mfilePath,'LiveEditorEvaluationHelper')
 end
 parameterSavePath = fileparts(mfilePath);
 S = struct('DefaultOutputPath',fullfile(defaultOutputPath,defaultFolder),...
-           'ReferenceAtlasPath',refAtlasFolderPath);
+           'ReferenceAtlasPath',refAtlasFolderPath,...
+           'TreeCSVFilename','structure_tree_safe_2017.csv',...
+           'AnnotationVolumeFilename','annotation_volume_10um_by_index.npy');
        
 save(fullfile(parameterSavePath,'brainViewer_params.mat'),'-struct','S');

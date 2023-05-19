@@ -7,14 +7,8 @@
 % immediately, though you will want to adjust several cosmetic options.
 
 %% Loading atlas info
-% Include "wholebrain" here to create the outline of the entire brian
-% - Doing so takes much longer than analyzing individual regions
-
-
 targetRegions = ["DG","CA3","CA2"];
-
 reductFactor = 0.01; % How much we want to simplify the volumes, 0.01 is good for plotting
-downsampleFactor = 0.01; 
 mfilePath = mfilename('fullpath');
 % (If running this code section-by-section, mfilename won't work and we 
 % need to get the active file name instead)
