@@ -5,6 +5,7 @@ A lightweight MATLAB package for generating 3D figures of the mouse brain using 
 brainViewer uses built-in MATLAB functionality to convert boundaries between brain regions (as defined in the Allen atlas) to 3D patch objects for easy plotting. Several functions are adapted from the SHARP-Track histological alignment pipeline developed by The Cortical Processing Laboratory at UCL (Cortex Lab).
 
 Requirements:
+- MATLAB Image Processing Toolbox
 -3D brain volume and annotation table, provided by Cortex Lab. Download all files from the following URL:
 http://data.cortexlab.net/allenCCF/
 Alternatively, see https://github.com/cortex-lab/allenCCF for other methods of accessing the reference atlas.
