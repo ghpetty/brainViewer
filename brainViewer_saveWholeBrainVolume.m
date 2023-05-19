@@ -30,7 +30,7 @@ Volume = wholeBrainVolume(annotationVolume,'Hemisphere','both','ReductionFactor'
 % volume_downsampled = reducepatch(volume,downsampleFactor);
 
 % Save output
-save(fullfile(pathData.DefaultOutputPath,'WholeBrainSurface.mat'),'-struct','Volume');
+save(fullfile(pathData.DefaultOutputPath,'WholeBrainSurface.mat'),'Volume');
 
 %% Create a nice plot
 figure

@@ -47,20 +47,18 @@ parse(p,region,annotationVolume,acronymTree,annotationTree,varargin{:});
 % variable will be very small and shouldn't impact performance much).
 regionNameCell = {};
 region = string(region);
-for ii = 1:length(region)
-    currRegionAcronym = region(ii);
+for i = 1:length(region)
+    currRegionAcronym = region(i);
 %     currRegionInd = acronymTree.find(currRegionAcronym);
     currRegionInd = find(strcmp(acronymTree,currRegionAcronym));
     if isempty(currRegionInd)
         error(string(currRegionAcronym)+" not found in acronym tree");
     end
-
     currSubtree = acronymTree.subtree(currRegionInd);
     currInds = currSubtree.breadthfirstiterator;
-    for jj = 1:length(currInds)
-        regionNameCell{end+1} = currSubtree.get(currInds(jj));
+    for j = 1:length(currInds)
+        regionNameCell{end+1} = currSubtree.get(currInds(j));
     end
-
 end
 nRegionsTotal = length(regionNameCell);
 disp("Found "+string(nRegionsTotal)+" regions to extract");
@@ -70,9 +68,9 @@ midlineValue = 570; % Hardcoding this, from inspection of 3D brain volume visual
 % Index through the identified regions and find their location in the brain
 % volume:
 isoCell = cell(size(regionNameCell));
-for ii = 1:nRegionsTotal
-    currRegionAcronym = regionNameCell{ii};
-    disp(string(currRegionAcronym)+" ("+string(ii)+"/"+string(nRegionsTotal)+")");
+for i = 1:nRegionsTotal
+    currRegionAcronym = regionNameCell{i};
+    disp(string(currRegionAcronym)+" ("+string(i)+"/"+string(nRegionsTotal)+")");
     currRegionInd = find(strcmp(acronymTree,currRegionAcronym));
     currRegionAnnotationVal = annotationTree.get(currRegionInd);
     disp('   Indexing annotation volume...');
@@ -95,9 +93,9 @@ for ii = 1:nRegionsTotal
     ISO = marchingCubes_bv(volumeBool,'-v');
     if p.Results.ReductionFactor ~=1
         disp('   Simplifying isosurface...'); 
-        isoCell{ii} = reducepatch(ISO,0.01);
+        isoCell{i} = reducepatch(ISO,0.01);
     else
-        isoCell{ii} = ISO;
+        isoCell{i} = ISO;
     end
     % Plotting code for debugging:
 %     hold on;

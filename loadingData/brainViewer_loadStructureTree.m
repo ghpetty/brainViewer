@@ -6,7 +6,7 @@ function structureTreeTable = brainViewer_loadStructureTree(fn)
 
 
 [~, fnBase] = fileparts(fn);
-if contains(fnBase, '2017')
+if ~contains(fnBase, '2017')
     mode = '2017'; 
 else
     mode = 'old'; 

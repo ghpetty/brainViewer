@@ -1,4 +1,4 @@
-function h = brainPlot3D(varargin)
+function h = brainPlot3D(patchData,varargin)
 % brainPlot3D(patchData)
 % Plot the volume data stored in the struct array 'patchData' onto 3D axes.
 % Axes are scaled and labelled according to the Allen Brain Atlas.
@@ -12,10 +12,10 @@ addRequired(p,'patchData',@(x) isstruct(x) || iscell(x));
 addParameter(p,'Color',{},@(x) iscell(x) || isnumeric(x) || isstring(x) || ischar(x));
 addParameter(p,'Alpha',0.2,@(x) isnumeric(x) && isvector(x))
 addParameter(p,'Parent',gca)
-parse(p,varargin{:});
+parse(p,patchData,varargin{:});
 
 parent = p.Results.Parent;
-patchData = p.Results.patchData;
+
 % If given a cell array, concatenate into a struct array:
 if iscell(patchData)
     patchData = vertcat(patchData{:});
@@ -26,9 +26,8 @@ alpha = checkAlpha(p.Results.Alpha,nRegions);
 wasHeld = ishold(parent);
 
 hold(parent,'on');
-h = gobjects(nRegions,1);
 for i = 1:nRegions
-    h(i) = patch(parent,patchData(i),'FaceColor',color(i,:),'EdgeColor','none','FaceAlpha',alpha(i));
+    patch(parent,patchData(i),'FaceColor',color(i,:),'EdgeColor','none','FaceAlpha',alpha(i));
 end
 
 set(parent,'ZDir','reverse','DataAspectRatio',[1 1 1],...
