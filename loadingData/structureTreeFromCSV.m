@@ -1,4 +1,4 @@
-function [acronymTree,annotationTree] = structureTreeFromCSV(tree_table)
+function [acronymTree,annotationTree,fullNameTree] = structureTreeFromCSV(tree_table)
 % [acronymTree,annotationTree] = structureTreeFromCSV(tree_table)
 % Converts the Allen Brain Atlas structure tree CSV table to a 'tree' class
 % (from file exchange: 
@@ -28,6 +28,7 @@ end
 % acronyms and indices within the brain annotation volume
 acronymTree = tree(idTree);
 annotationTree = tree(idTree);
+fullNameTree = tree(idTree);
 % Doesn't matter how we iterate, but breadth-first is sensible for this 
 % tree structure and should make debugging a bit easier.
 iter = idTree.breadthfirstiterator; 
@@ -35,7 +36,9 @@ iter = idTree.breadthfirstiterator;
 for i = iter
     currID = idTree.get(i);
     acronym = (tree_table.acronym(tree_table.id == currID));
+    fullName = tree_table.name(tree_table.id == currID);
     acronymTree = acronymTree.set(i,acronym{:});
+    fullNameTree = fullNameTree.set(i,fullName{:});
     annotationVal = tree_table.index(tree_table.id == currID) + 1;
     annotationTree = annotationTree.set(i,annotationVal);
 end
