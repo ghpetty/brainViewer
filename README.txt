@@ -21,10 +21,10 @@ After downloading the required files, add all brainViewer files to your MATLAB p
 Run the brainViewer_setup script to tell brainViewer where the reference atlas files are saved and to set up a default output folder.
 Next, run the brainViewer_saveWholeBrainVolume script to create a file depicting the surface of the entire brain. 
 This is the slowest and most computationally intensive step, and will take several minutes. After running, brainViewer will save the output so that it need not be run again and the volume information can be loaded into all other plots. 
-Once you have generated the full 3D volume, run the ExampleHippocampusPlot3D script. This will walk you through
-the basic steps in generating 3D brain volumes and plotting them.
+Once you have generated the full 3D volume, run the ExampleHippocampusPlot3D script. This will walk you through the basic steps in generating 3D brain volumes and plotting them. Likewise, ExampleThalamusPlot2D will walk you through the basics of creating 2D plots of slices of the brain in the coronal, sagittal, or transverse planes.
 
 --- Coming Soon ---
 - 2D plots projecting over coronal, sagittal, or dorsal slices of the brian
 - Animations of rotating 3D plots
-- Guide for plotting probe locations and scattering cell locations in both 2D and 3D 
+- MATLAB app for navigating the structure tree and generating plots interactively. 
+
