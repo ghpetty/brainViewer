@@ -126,16 +126,22 @@ for i = 1:nRegionsTotal
     end
     binaryPlane = squeeze(binaryPlane);
     binaryMaskCell{i} = binaryPlane;
-    boundaryXY = bwboundaries(binaryPlane);
-    if length(boundaryXY) > 1
-        % Add a nan in the middle so, when plotting, you don't join up both
-        % hemispheres
-        boundaryXY = vertcat(boundaryXY{1},[nan nan],boundaryXY{2});
-        
+    % Sometimes we slice in a way that excludes a region. If so, give a
+    % warning and move to the next one
+    if ~any(binaryPlane,'all')
+        warning(string(currRegionAcronym)+" is outside specified slice plane")
+        perimeterCoordinatesCell{i} = [];
     else
-        boundaryXY = boundaryXY{:};
+        boundaryXY = bwboundaries(binaryPlane);
+        if length(boundaryXY) > 1
+            % Add a nan in the middle so, when plotting, you don't join up both
+            % hemispheres
+            boundaryXY = vertcat(boundaryXY{1},[nan nan],boundaryXY{2});
+        else
+            boundaryXY = boundaryXY{:};
+        end
+        perimeterCoordinatesCell{i} = boundaryXY;
     end
-    perimeterCoordinatesCell{i} = boundaryXY;
 end
 
 if p.Results.Concatenate == true
@@ -165,3 +171,7 @@ else
         regionName = regionNameCell';
     end
 end
+emptyInds = cellfun(@isempty,perimeterCoordinates);
+regionName(emptyInds) = [];
+perimeterCoordinates(emptyInds) = [];
+
