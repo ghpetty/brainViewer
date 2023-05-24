@@ -24,7 +24,6 @@ This is the slowest and most computationally intensive step, and will take sever
 Once you have generated the full 3D volume, run the ExampleHippocampusPlot3D script. This will walk you through the basic steps in generating 3D brain volumes and plotting them. Likewise, ExampleThalamusPlot2D will walk you through the basics of creating 2D plots of slices of the brain in the coronal, sagittal, or transverse planes.
 
 --- Coming Soon ---
-- 2D plots projecting over coronal, sagittal, or dorsal slices of the brian
 - Animations of rotating 3D plots
 - MATLAB app for navigating the structure tree and generating plots interactively. 
 
