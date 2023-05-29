@@ -11,10 +11,14 @@ p = inputParser;
 addRequired(p,'patchData',@(x) isstruct(x) || iscell(x));
 addParameter(p,'Color',{},@(x) iscell(x) || isnumeric(x) || isstring(x) || ischar(x));
 addParameter(p,'Alpha',0.2,@(x) isnumeric(x) && isvector(x))
-addParameter(p,'Parent',gca)
+addParameter(p,'Parent',[])
 parse(p,varargin{:});
 
-parent = p.Results.Parent;
+if isempty(p.Results.Parent)
+    parent = gca;
+else
+    parent = p.Results.Parent;
+end
 patchData = p.Results.patchData;
 % If given a cell array, concatenate into a struct array:
 if iscell(patchData)
