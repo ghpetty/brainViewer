@@ -28,6 +28,12 @@ function [volume,regionName] = atlasRegionVolume(region,annotationVolume,acronym
 % [volume,region] = atlasRegionVolume(region,___,'AsCell',true)
 % Returns output volume as a cell even if only given a single input region
 % and there are no subregions.
+%
+% [volume,region] = atlasRegionVolume(region,___,'Merge',(false)|true)
+% Specify as true to combine all sub-regions of the input regions as a
+% single volume. For example inputting regions = ["LG","DG"] will return two volumes, the first 
+% comprised of all subregions of the lateral geniculate nucleus, the second
+% of all subregions of the dentate gyrus. 
 
 p = inputParser;
 addRequired(p,'region',@(x) iscell(x) || ischar(x) || isstring(x));
@@ -38,6 +44,7 @@ addParameter(p,'Hemisphere','both',...
                     @(x) ismember(lower(x),{'all','both','left','right'}))
 addParameter(p,'ReductionFactor',0.01,@(x) isnumeric(x) && isscalar(x) && x<=1 && x>0);
 addParameter(p,'AsCell',false,@(x) isscalar(x) && islogical(x));
+addParameter(p,'Merge',false,@(x) isscalar(x) && islogical(x));
 
 parse(p,region,annotationVolume,acronymTree,annotationTree,varargin{:});
 
@@ -45,8 +52,20 @@ parse(p,region,annotationVolume,acronymTree,annotationTree,varargin{:});
 % processing:
 % (We use dynamic indexing here to get all of the region names as this
 % variable will be very small and shouldn't impact performance much).
-regionNameCell = {};
+
+midlineValue = 570; % Hardcoding this, from inspection of 3D brain volume visualization
 region = string(region);
+if p.Results.Merge
+    isoCell = cell(length(region),1)
+    regionName = region;
+else
+    isoCell = {};
+    regionName = {};
+end
+
+
+
+% Check that input acronyms are valid
 for ii = 1:length(region)
     currRegionAcronym = region(ii);
 %     currRegionInd = acronymTree.find(currRegionAcronym);
@@ -54,67 +73,127 @@ for ii = 1:length(region)
     if isempty(currRegionInd)
         error(string(currRegionAcronym)+" not found in acronym tree");
     end
+end
 
+for ii = 1:length(region)
+    currRegionAcronym = region(ii);
+    currRegionInd = find(strcmp(acronymTree,currRegionAcronym));
     currSubtree = acronymTree.subtree(currRegionInd);
     currInds = currSubtree.breadthfirstiterator;
+    subregionNameCell = cell(length(currInds),1);
     for jj = 1:length(currInds)
-        regionNameCell{end+1} = currSubtree.get(currInds(jj));
+        subregionNameCell{jj} = currSubtree.get(currInds(jj));
     end
-
-end
-nRegionsTotal = length(regionNameCell);
-disp("Found "+string(nRegionsTotal)+" regions to extract");
-
-midlineValue = 570; % Hardcoding this, from inspection of 3D brain volume visualization
-
-% Index through the identified regions and find their location in the brain
-% volume:
-isoCell = cell(size(regionNameCell));
-for ii = 1:nRegionsTotal
-    currRegionAcronym = regionNameCell{ii};
-    disp(string(currRegionAcronym)+" ("+string(ii)+"/"+string(nRegionsTotal)+")");
-    currRegionInd = find(strcmp(acronymTree,currRegionAcronym));
-    currRegionAnnotationVal = annotationTree.get(currRegionInd);
-    disp('   Indexing annotation volume...');
-    volumeBool = annotationVolume == currRegionAnnotationVal;
-    if ~any(volumeBool,'all')
-        warning(currRegionAcronym+" annotation value not found in brain volume, skipping");
-        continue
-    end
-    volumeBool = permute(volumeBool,[3 1 2]);  % Reshapes matrix to fit with wireframe diagram
-    % Isolate specified hemisphere by setting all values on the opposite
-    % hemisphere to 'false'
-    switch string(lower(p.Results.Hemisphere))
-        case "right"
-            volumeBool(1:midlineValue,:,:) = false;
-        case 'left'
-            volumeBool(midlineValue:end,:,:) = false;
-    end
-    disp('   Computing isosurface...');
-    % ISO = isosurface(volumeBool,0.5);
-    ISO = marchingCubes_bv(volumeBool,'-v');
-    if p.Results.ReductionFactor ~=1
-        disp('   Simplifying isosurface...'); 
-        isoCell{ii} = reducepatch(ISO,0.01);
+    nSubregionsTotal = length(subregionNameCell);
+    disp("Found "+string(nSubregionsTotal)+" subregions to extract from "+string(currRegionAcronym));
+    
+    if p.Results.Merge
+        regionName = region;
+        disp('Merging all subregions into single volume')
+        volumeBool = false(size(annotationVolume));
+        for jj = 1:nSubregionsTotal
+            currRegionAcronym = subregionNameCell{jj};
+            disp(string(currRegionAcronym)+" ("+string(jj)+"/"+string(nSubregionsTotal)+")");
+            currRegionInd = find(strcmp(acronymTree,currRegionAcronym));
+            currRegionAnnotationVal = annotationTree.get(currRegionInd);
+            volumeBool = volumeBool | (annotationVolume == currRegionAnnotationVal);
+        end
+        patchOut = computeOneSurface(volumeBool,p.Results.Hemisphere,midlineValue,p.Results.ReductionFactor);
+        isoCell(ii) = {patchOut};
     else
-        isoCell{ii} = ISO;
+        for jj = 1:nSubregionsTotal
+            currRegionAcronym = subregionNameCell{jj};
+            disp(string(currRegionAcronym)+" ("+string(jj)+"/"+string(nSubregionsTotal)+")");
+            currRegionAnnotationVal = annotationTree.get(...
+                find(strcmp(acronymTree,currRegionAcronym)));
+            volumeBool = annotationVolume == currRegionAnnotationVal;
+            if ~any(volumeBool,'all')
+                warning(currRegionAcronym+" annotation value not found in brain volume, skipping");
+            else
+                patchOut = computeOneSurface(volumeBool,p.Results.Hemisphere,midlineValue,p.Results.ReductionFactor);
+                isoCell(end+1) = {patchOut};
+                regionName(end+1) = {string(currRegionAcronym)};
+            end
+        end
     end
-    % Plotting code for debugging:
-%     hold on;
-%     patchHandle = patch(isoCell{i});
-%     set(patchHandle,'EdgeAlpha',0,'FaceColor','b','FaceAlpha',0.3);
-%     drawnow
 end
 
-% Remove empty values (happens if there are regions we skipped)
-emptyInds = cellfun('isempty',isoCell);
-isoCell(emptyInds) = [];
-regionNameCell(emptyInds) = [];
-
-if ~p.Results.AsCell && nRegionsTotal == 1
-    volume = isoCell{:};
-    regionName = regionNameCell{:};
-else
-    volume = isoCell;
-    regionName = regionNameCell;
+regionName = [regionName{:}]' ; % Cell array to string array
+volume = isoCell;
+if length(volume) == 1 && ~p.Results.AsCell
+    volume = volume{:};
 end
+% 
+% 
+% % Index through the identified regions and find their location in the brain
+% % volume:
+% isoCell = cell(size(subregionNameCell));
+% for ii = 1:nSubregionsTotal
+%     currRegionAcronym = subregionNameCell{ii};
+%     disp(string(currRegionAcronym)+" ("+string(ii)+"/"+string(nSubregionsTotal)+")");
+%     currRegionInd = find(strcmp(acronymTree,currRegionAcronym));
+%     currRegionAnnotationVal = annotationTree.get(currRegionInd);
+%     disp('   Indexing annotation volume...');
+%     volumeBool = annotationVolume == currRegionAnnotationVal;
+%     if ~any(volumeBool,'all')
+%         warning(currRegionAcronym+" annotation value not found in brain volume, skipping");
+%         continue
+%     end
+%     volumeBool = permute(volumeBool,[3 1 2]);  % Reshapes matrix to fit with wireframe diagram
+%     % Isolate specified hemisphere by setting all values on the opposite
+%     % hemisphere to 'false'
+%     switch string(lower(p.Results.Hemisphere))
+%         case "right"
+%             volumeBool(1:midlineValue,:,:) = false;
+%         case 'left'
+%             volumeBool(midlineValue:end,:,:) = false;
+%     end
+%     disp('   Computing isosurface...');
+%     % ISO = isosurface(volumeBool,0.5);
+%     ISO = marchingCubes_bv(volumeBool,'-v');
+%     if p.Results.ReductionFactor ~=1
+%         disp('   Simplifying isosurface...'); 
+%         isoCell{ii} = reducepatch(ISO,0.01);
+%     else
+%         isoCell{ii} = ISO;
+%     end
+%     % Plotting code for debugging:
+% %     hold on;
+% %     patchHandle = patch(isoCell{i});
+% %     set(patchHandle,'EdgeAlpha',0,'FaceColor','b','FaceAlpha',0.3);
+% %     drawnow
+% end
+% 
+% % Remove empty values (happens if there are regions we skipped)
+% emptyInds = cellfun('isempty',isoCell);
+% isoCell(emptyInds) = [];
+% subregionNameCell(emptyInds) = [];
+% 
+% if ~p.Results.AsCell && nSubregionsTotal == 1
+%     volume = isoCell{:};
+%     regionNameCell = subregionNameCell{:};
+% else
+%     volume = isoCell;
+%     regionNameCell = subregionNameCell;
+% end
+
+% --- Subfunctions ---
+function patchOut = computeOneSurface(volumeBool,hemisphere,midlineValue,reductionFactor)
+    volumeBool = permute(volumeBool,[3 1 2]);  % Reshapes matrix to fit with wireframe diagram
+        % Isolate specified hemisphere by setting all values on the opposite
+        % hemisphere to 'false'
+        switch string(lower(hemisphere))
+            case "right"
+                volumeBool(1:midlineValue,:,:) = false;
+            case 'left'
+                volumeBool(midlineValue:end,:,:) = false;
+        end
+        disp('   Computing isosurface...');
+        % ISO = isosurface(volumeBool,0.5);
+        ISO = marchingCubes_bv(volumeBool,'-v');
+        if reductionFactor ~=1
+            disp('   Simplifying isosurface...'); 
+            patchOut = reducepatch(ISO,reductionFactor);
+        else
+            patchOut = ISO;
+        end
