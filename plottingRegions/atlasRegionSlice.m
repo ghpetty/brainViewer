@@ -171,7 +171,8 @@ else
         regionName = regionNameCell';
     end
 end
-emptyInds = cellfun(@isempty,perimeterCoordinates);
-regionName(emptyInds) = [];
-perimeterCoordinates(emptyInds) = [];
-
+if iscell(perimeterCoordinates)
+    emptyInds = cellfun(@isempty,perimeterCoordinates);
+    regionName(emptyInds) = [];
+    perimeterCoordinates(emptyInds) = [];
+end
